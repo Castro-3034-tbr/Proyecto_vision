@@ -1,0 +1,18 @@
+1. Recomentar el codigo para tener mas entendibilidad
+2. Reentrenar en varias situaciones para reconocer mi cara en varias condiciones luminicas y con gafas(de ver , de sol, de bici) , sin gafas 
+3. Reentrenar con varias personas 
+4. Buscar informacion con de los diferentes tipos de dectectores de caras
+5. Buscar informacion sobre los diferentes modelos de clasificadores de caras
+
+FIXME: Reescribir el codigo para poder un programa en el cual cumpla las siguientes condiciones
+    Primero detecta una cara
+        Comprueba si conoce la cara,   Linea 14 
+        Si la conoce la identifica y muestra la informacion de la persona 
+        Si no detecta una cara sigue esperando a que aparezca una cara
+    
+    Si no conoce la cara 
+        Pide la informacion necesaria para poder guardar la cara en la data base
+        Guarda la informacion en la data base
+        Extrae el bending de la cara 
+        Reentrena el modelo para poder reconocer la cara
+        Vuelve a intentar detectar caras 
