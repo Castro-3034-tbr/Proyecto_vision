@@ -1,0 +1,44 @@
+{
+	// Seleccion detector caras: HAAR,HOG, MMOD, DNN_CAFFE,DNN_8B
+	"detect_model":"HAAR",
+
+	// Modelos de clasificador: KNN,SVN,RF
+	"clasificador_model":"KNN",
+
+	// path ao detector de caras de Haar cascade de Opencv
+	"cascade_path": "./models/haarcascade_frontalface_default.xml",
+
+	// Path ao detector de caras MMOD de Dlib
+	"mmod_path": "./models/mmod_human_face_detector.dat",
+	
+	// Path ao modelo detetor de caras CNN en CAFFE
+	"model_caffe_path": "./models/res10_300x300_ssd_iter_140000.caffemodel",
+
+	"configfile_caffe_path": "./models/deploy.prototxt",
+	
+	// Path ao modelo detetor de caras CNN en Tensorflow
+	"model_tesorflow_path": "./models/opencv_face_detector_uint8.pb",
+
+	"configfile_tensorflow_path": "./models/opencv_face_detector.pbtxt",
+
+	//Path ao modelos que codifica as caras
+	"embedding_model_path": "./models/openface_nn4.small2.v1.t7",
+	
+	// path to extractrecognizer_pathed face encodings file
+	"embeddings_path": "output/embeddings.pickle",
+
+	// path ao clasificador de caras
+	"recognizer_path": "output/recognizer.pickle",
+
+	// path ao ficheiro de etiquetas codificado
+	"le_path": "output/le.pickle",
+
+	// path ao cartafol onde temos a base de datos
+	"dataset_path":"./dataset",
+
+	//minima probabilidade necesaria para que se considere
+	//fiable a deteccion da cara
+
+	"confidence":0.5
+
+}

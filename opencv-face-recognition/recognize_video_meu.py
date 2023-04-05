@@ -1,4 +1,3 @@
-
 #https://www.bogotobogo.com/python/pytut.php
 #https://www.bogotobogo.com/python/OpenCV_Python/python_opencv3.php
 
@@ -68,6 +67,8 @@ recognizer = pickle.loads(open(conf["recognizer_path"], "rb").read())
 le = pickle.loads(open(conf["le_path"], "rb").read())
 
 def detectFaceOpenCVDnn(detector, frame):
+    
+    
 	# Construimos o blob dende a imaxe (prepocesado)
 	imageBlob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 117.0, 123.0), swapRB=False, crop=False)
 
@@ -75,11 +76,13 @@ def detectFaceOpenCVDnn(detector, frame):
 	detector.setInput(imageBlob)
 	detections = detector.forward()
 
+
 	# lazo sobre todas as deteccions
 	for i in range(0, detections.shape[2]):
 		# extraemos a confianza (i.e., probabilidade) asociado coa prediccion
 		confidence = detections[0, 0, i, 2]
-
+	
+		#Añadimos la confianza al array
 		# filtramos as deteccions debiles
 		if confidence > conf["confidence"]:
 			# acha as coordenadas (x, y) do rectangulo que acouta a cara
@@ -95,14 +98,17 @@ def detectFaceOpenCVDnn(detector, frame):
 				continue
             #Codificamos e recoñecemos a cara detectada
 			name, proba = codifica_reconhece_caras(frame, face)
+
+			
 			
 			# debuxamos a rexion rectangular coa probabiliade asociada
 			text = "{}: {:.2f}%".format(name, proba * 100)
 			y = startY - 10 if startY - 10 > 10 else startY + 10
 			cv2.rectangle(frame, (startX, startY), (endX, endY),(0, 0, 255), 2)
 			cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
-			
-	return frame
+	
+	#Calculamos las media de las confianzas
+	return frame , proba
 
 
 
@@ -133,7 +139,7 @@ def detectFaceOpenCVHaar(faceCascade,frame, inHeight=300, inWidth=0):
 		cv2.rectangle(frame, (cvRect[0], cvRect[1]), (cvRect[2], cvRect[3]),(0, 0, 255), 2)
 		cv2.putText(frame, text, (cvRect[0], y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
 
-	return frame
+	return frame , proba
 
 def detectFaceDlibHog(detector, frame, inHeight=300, inWidth=0):
 	frameDlibHog = frame.copy()
@@ -163,7 +169,7 @@ def detectFaceDlibHog(detector, frame, inHeight=300, inWidth=0):
 		y = cvRect[1] - 10 if cvRect[1] - 10 > 10 else cvRect[1] + 10
 		cv2.rectangle(frame, (cvRect[0], cvRect[1]), (cvRect[2], cvRect[3]),(0, 0, 255), 2)
 		cv2.putText(frame, text, (cvRect[0], y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
-	return frame
+	return frame , proba
 
 
 def detectFaceDlibMMOD(detector, frame, inHeight=300, inWidth=0):
@@ -192,7 +198,7 @@ def detectFaceDlibMMOD(detector, frame, inHeight=300, inWidth=0):
 		y = cvRect[1] - 10 if cvRect[1] - 10 > 10 else cvRect[1] + 10
 		cv2.rectangle(frame, (cvRect[0], cvRect[1]), (cvRect[2], cvRect[3]),(0, 0, 255), 2)
 		cv2.putText(frame, text, (cvRect[0], y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
-	return frame
+	return frame , proba
 
 
 def codifica_reconhece_caras(frame, faceROI):
@@ -223,6 +229,7 @@ cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)
 # inicializamo o FPS
 fps = FPS().start()
 
+
 # bucle sobre cada frame no video
 while True:
 	# Lemos un frame do video
@@ -233,21 +240,21 @@ while True:
 	(h, w) = frame.shape[:2]
 	#Detectamos, codificamos e recoñecemos as caras detectadas
 	if conf["detect_model"]=="HAAR":
-		frame = detectFaceOpenCVHaar(faceCascade,frame)
+		frame, proba = detectFaceOpenCVHaar(faceCascade,frame)
 	elif conf["detect_model"] == "HOG":
-		frame = detectFaceDlibHog(hogFaceDetector, frame)
+		frame, proba = detectFaceDlibHog(hogFaceDetector, frame)
 	elif conf["detect_model"] == "MMOD":
-		frame = detectFaceDlibMMOD(dnnFaceDetector, frame)
+		frame , proba = detectFaceDlibMMOD(dnnFaceDetector, frame)
 	elif conf["detect_model"] == "DNN_CAFFE":
-		frame = detectFaceOpenCVDnn(detector, frame)
+		frame, proba = detectFaceOpenCVDnn(detector, frame)
 	elif conf["detect_model"] == "DNN_8B":
-		frame = detectFaceOpenCVDnn(detector, frame)
+		frame, proba = detectFaceOpenCVDnn(detector, frame)
 	else:
 		raise Exception("Tipo de modelo non soportado:" + conf["detect_model"])
 
 	# actualizaos o contador de frames
 	fps.update()
-
+	
 	# visualizamos o framede saida
 	cv2.imshow(windowName, frame)
 	key = cv2.waitKey(1) & 0xFF
@@ -255,6 +262,7 @@ while True:
 	# Se presionas `q`, saimos do lazo
 	if key == ord("q"):
 		break
+	
 
 # paramos os contadores de tempo e frames FPS
 fps.stop()

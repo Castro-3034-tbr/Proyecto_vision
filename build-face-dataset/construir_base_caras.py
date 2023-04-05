@@ -52,7 +52,6 @@ while True:
 	# Visualizamos o frame modificado
 	cv2.imshow("Frame", frame)
 	key = cv2.waitKey(1) & 0xFF
- 
 	# Se presionas `k` salvamos o frame orixinal a disco para a nosa base de datos 
 	if key == ord("k"):
 		p = os.path.sep.join([args["output"], "{}.png".format(str(total).zfill(5))])

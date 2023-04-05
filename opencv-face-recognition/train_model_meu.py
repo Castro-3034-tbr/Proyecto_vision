@@ -46,7 +46,7 @@ recognizer = None
 if conf["clasificador_model"] == "KNN":
     print ("clasificador kNN")
     recognizer = neighbors.KNeighborsClassifier(n_neighbors=5, algorithm='ball_tree')
-elif conf["clasificador_model"] == "SVM":
+elif conf["clasificador_model"] == "SVN":
     print ("Clasificador SVN")
     recognizer = SVC(C=1.0, kernel="linear", probability=True)
 elif conf["clasificador_model"] == "RF":
