@@ -1,6 +1,6 @@
 {
 	// Seleccion detector caras: HAAR,HOG, MMOD, DNN_CAFFE,DNN_8B
-	"detect_model":"HAAR",
+	"detect_model":"DNN_CAFFE",
 
 	// Modelos de clasificador: KNN,SVN,RF
 	"clasificador_model":"KNN",
@@ -39,6 +39,6 @@
 	//minima probabilidade necesaria para que se considere
 	//fiable a deteccion da cara
 
-	"confidence":0.5
+	"confidence":0.7
 
 }

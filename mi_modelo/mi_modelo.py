@@ -12,6 +12,12 @@ import cv2
 import os
 import time
 
+from sklearn.preprocessing import LabelEncoder
+from sklearn import neighbors
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+
+from funciones import *
 
 def capturar_imagen():
     """Funcion que se usa para capturar las imagenes de la persona que se le pasa por parametro"""
@@ -22,12 +28,19 @@ def capturar_imagen():
 
     # Pedimos el nombre de la persona
     nombre = input("Nombre de la persona: ")
-
-    # Creamos la carpeta de la persona
     direccion = str("/home/castro/Escritorio/Proyecto_vision/mi_modelo/dataset/"+nombre)
-    print("Carpeta creada: "+direccion)
-    os.mkdir(direccion)
+    #Comprobamos si la carpeta existe
+    if os.path.exists("dataset/"+nombre):
+        print("La carpeta ya existe")
+        #Miramos el numero de imagenes que hay en la carpeta
+        total = len(os.listdir(direccion))
+        print("Total de imagenes: "+str(total))
+    # Creamos la carpeta de la persona
+    else:
+        print("Carpeta creada: "+direccion)
+        os.mkdir(direccion)
     time.sleep(2.0)
+
 
     # Realizamos las capturas de la persona
     for i in range(0, 20):
@@ -42,8 +55,7 @@ def capturar_imagen():
         print("Captura guardada")
         total += 1
         time.sleep(0.5)
-        
-        
+
 
 
 def extraer_embeddings():
@@ -129,6 +141,49 @@ def extraer_embeddings():
     f.close()
 
 
+def reentrenar_modelo():
+    """Funciones que se usan para reentrenar"""
+    global conf 
+    
+    # Cargamos los embeddings
+    print("[INFO] cargando los embeddings...")
+    data = pickle.loads(open(conf["embeddings_path"], "rb").read())
+    
+    #codificamos las etiquetas de texto entre 0 y n_clase-1
+    print("[INFO] codificando las etiquetas...")
+    le = LabelEncoder()
+    labels = le.fit_transform(data["names"])
+    
+    # Entremos o modelos para aceptar caracteristicas de dimesnion 128-d das caras embebidas e producimos o recoñecemento de caras
+    print("[INFO] modelo seleccionado...")
+    recognizer = None
+    if conf["clasificador_model"] == "KNN":
+        print("clasificador kNN")
+        recognizer = neighbors.KNeighborsClassifier(
+            n_neighbors=5, algorithm='ball_tree')
+    elif conf["clasificador_model"] == "SVN":
+        print("Clasificador SVN")
+        recognizer = SVC(C=1.0, kernel="linear", probability=True)
+    elif conf["clasificador_model"] == "RF":
+        print("Clasificador Random Forest")
+        recognizer = RandomForestClassifier()
+    else:
+        raise Exception("Tipo de modelo non soportado:" + conf["clasificador_model"])
+
+    print("[INFO] entrenando o modelo...")
+    recognizer.fit(data["embeddings"], labels)
+
+    # Escribimos a disco o modelo do recoñecedor de caras entrenado
+    f = open(conf["recognizer_path"], "wb")
+    f.write(pickle.dumps(recognizer))
+    f.close()
+
+    # Escribimos as etiquetas codificadas a disco
+    f = open(conf["le_path"], "wb")
+    f.write(pickle.dumps(le))
+    f.close()
+
+    
 def codifica_reconhece_caras(frame, faceROI):
     # Preprocesamos a rexion para codificala
     faceBlob = cv2.dnn.blobFromImage(
@@ -146,6 +201,9 @@ def codifica_reconhece_caras(frame, faceROI):
 
 
 def detectFaceOpenCVDnn(detector, frame):
+    # Inicializamos la probabilidad de la cara
+	proba=0
+
 	# Construimos o blob dende a imaxe (prepocesado)
 	imageBlob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 117.0, 123.0), swapRB=False, crop=False)
 
@@ -177,42 +235,45 @@ def detectFaceOpenCVDnn(detector, frame):
 			y = startY - 10 if startY - 10 > 10 else startY + 10
 			cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
 			cv2.putText(frame, text, (startX, y),cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
-
-	#Calculamos las media de las confianzas
+    
 	return frame, proba
 
 
 def detectFaceOpenCVHaar(faceCascade, frame, inHeight=300, inWidth=0):
-	frameOpenCVHaar = frame.copy()
-	frameHeight = frameOpenCVHaar.shape[0]
-	frameWidth = frameOpenCVHaar.shape[1]
-	if not inWidth:
-		inWidth = int((frameWidth / frameHeight) * inHeight)
-	scaleHeight = frameHeight / inHeight
-	scaleWidth = frameWidth / inWidth
-	frameOpenCVHaarSmall = cv2.resize(frameOpenCVHaar, (inWidth, inHeight))
-	frameGray = cv2.cvtColor(frameOpenCVHaarSmall, cv2.COLOR_BGR2GRAY)
-	faces = faceCascade.detectMultiScale(image=frameGray, minSize=(20, 20))
-	for (x, y, w, h) in faces:
-		x1, y1, x2, y2 = x, y, x + w, y + h
-		cvRect = (int(x1 * scaleWidth), int(y1 * scaleHeight),int(x2 * scaleWidth), int(y2 * scaleHeight))
-		# extraemos a ROI da cara
-		face = frameOpenCVHaar[cvRect[1]:cvRect[3], cvRect[0]:cvRect[2]]
-		(fH, fW) = face.shape[:2]
-		if fW < 20 or fH < 20:
-			continue
+    proba = 0
+    
+    frameOpenCVHaar = frame.copy()
+    frameHeight = frameOpenCVHaar.shape[0]
+    frameWidth = frameOpenCVHaar.shape[1]
+    if not inWidth:
+        inWidth = int((frameWidth / frameHeight) * inHeight)
+    scaleHeight = frameHeight / inHeight
+    scaleWidth = frameWidth / inWidth
+    frameOpenCVHaarSmall = cv2.resize(frameOpenCVHaar, (inWidth, inHeight))
+    frameGray = cv2.cvtColor(frameOpenCVHaarSmall, cv2.COLOR_BGR2GRAY)
+    faces = faceCascade.detectMultiScale(image=frameGray, minSize=(20, 20))
+    for (x, y, w, h) in faces:
+        x1, y1, x2, y2 = x, y, x + w, y + h
+        cvRect = (int(x1 * scaleWidth), int(y1 * scaleHeight),int(x2 * scaleWidth), int(y2 * scaleHeight))
+        # extraemos a ROI da cara
+        face = frameOpenCVHaar[cvRect[1]:cvRect[3], cvRect[0]:cvRect[2]]
+        (fH, fW) = face.shape[:2]
+        if fW < 20 or fH < 20:
+            continue
 		#Codificamos a cara detectada
-		name, proba = codifica_reconhece_caras(frameOpenCVHaar, face)
-
-		text = "{}: {:.2f}%".format(name, proba * 100)
-		y = cvRect[1] - 10 if cvRect[1] - 10 > 10 else cvRect[1] + 10
-		cv2.rectangle(frame, (cvRect[0], cvRect[1]),(cvRect[2], cvRect[3]), (0, 0, 255), 2)
-		cv2.putText(frame, text, (cvRect[0], y),cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
-
-	return frame, proba
+        name, proba = codifica_reconhece_caras(frameOpenCVHaar, face)
+        text = "{}: {:.2f}%".format(name, proba * 100)
+        y = cvRect[1] - 10 if cvRect[1] - 10 > 10 else cvRect[1] + 10
+        cv2.rectangle(frame, (cvRect[0], cvRect[1]),(cvRect[2], cvRect[3]), (0, 0, 255), 2)
+        cv2.putText(frame, text, (cvRect[0], y),cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+    
+    return frame, proba
 
 
 def detectFaceDlibHog(detector, frame, inHeight=300, inWidth=0):
+    #Inicializamos a probabilidade
+    proba = 0
+    
     frameDlibHog = frame.copy()
     frameHeight = frameDlibHog.shape[0]
     frameWidth = frameDlibHog.shape[1]
@@ -243,6 +304,7 @@ def detectFaceDlibHog(detector, frame, inHeight=300, inWidth=0):
         y = cvRect[1] - 10 if cvRect[1] - 10 > 10 else cvRect[1] + 10
         cv2.rectangle(frame, (cvRect[0], cvRect[1]),(cvRect[2], cvRect[3]), (0, 0, 255), 2) 
         cv2.putText(frame, text, (cvRect[0], y),cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+    
     return frame , proba
 
 
@@ -306,7 +368,9 @@ cv2.namedWindow(windowName, cv2.WND_PROP_FULLSCREEN)
 fps = FPS().start()
 
 # Creamos el bucle de deteccion
+i = 0
 while True:
+    i = i + 1
     # Leemos cada frame
     frame = vs.read()
     # Redimensionamos el frame para que sea mas rapido
@@ -337,11 +401,14 @@ while True:
     print("Probabilidad: " + str(proba*100))
     
     # Si la probilidad de 0.5, vamos a guardar la nueva cara 
-    if proba < 0.5:
+    
+    if 0.4 <proba < 0.7:
         #Capturamos las imagenes 
         capturar_imagen()
         #Obtenemos los embeddings 
         extraer_embeddings()
+        #Reentrenamos el modelo
+        reentrenar_modelo()
     
     # Si pulsamos la tecla 'q' salimos del bucle
     if key == ord("q"):
